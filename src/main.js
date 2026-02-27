@@ -1,18 +1,18 @@
+import * as Cesium from 'cesium';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { initCesium, setCameraToPlane, getViewer, setControlsEnabled, setRenderOptimization } from './world/cesiumWorld';
-import { PlanePhysics } from './plane/planePhysics';
-import { PlaneController } from './plane/planeController';
-import { movePosition } from './utils/math';
-import { calculateDistance, reverseGeocode } from './world/regions';
-import { HUD } from './ui/hud';
 import { JetFlame } from './plane/jetFlame';
-import { WeaponSystem } from './systems/weaponSystem';
-import { soundManager } from './utils/soundManager';
-import { NPCSystem } from './systems/npcSystem';
+import { PlaneController } from './plane/planeController';
+import { PlanePhysics } from './plane/planePhysics';
 import { DialogueSystem } from './systems/dialogueSystem';
-import * as Cesium from 'cesium';
+import { NPCSystem } from './systems/npcSystem';
+import { WeaponSystem } from './systems/weaponSystem';
+import { HUD } from './ui/hud';
+import { movePosition } from './utils/math';
 import { particles } from './utils/particles';
+import { soundManager } from './utils/soundManager';
+import { getViewer, initCesium, setCameraToPlane, setControlsEnabled, setRenderOptimization } from './world/cesiumWorld';
+import { calculateDistance, reverseGeocode } from './world/regions';
 
 const States = {
 	MENU: 'MENU',
@@ -20,7 +20,7 @@ const States = {
 	TRANSITIONING: 'TRANSITIONING',
 	FLYING: 'FLYING',
 	PAUSED: 'PAUSED',
-	CRASHED: 'CRASHED'
+	CRASHED: 'CRASHED',
 };
 
 let currentState = States.MENU;
@@ -33,9 +33,41 @@ let gameSettings = {
 	showHud: true,
 	showHorizonLines: false,
 	soundEnabled: true,
-	minimapRange: 10
+	minimapRange: 10,
+	inputKeys: {
+		throttleFwKey: 'w',
+		throttleBwKey: 's',
+		yawLeftKey: 'a',
+		yawRightKey: 'd',
+		pitchUpKey: 'arrowup',
+		pitchDownKey: 'arrowdown',
+		rollLeftKey: 'arrowleft',
+		rollRightKey: 'arrowright',
+		boostKey: ' ',
+		fireKey: 'enter',
+		fireFallbackKey: 'f',
+		fireFlareKey: 'v',
+		toggleWeaponKey: 'q',
+		weapon1Key: '1',
+		weapon2Key: '2',
+		pauseKey: 'p',
+		skipDialogueKey: 'z',
+	},
 };
 
+const INPUT_KEY_IDS = Object.keys(gameSettings.inputKeys);
+
+const KEY_DISPLAY_MAP = {
+	' ': 'SPACE',
+	enter: 'ENTER',
+	arrowup: '↑',
+	arrowdown: '↓',
+	arrowleft: '←',
+	arrowright: '→',
+	escape: 'ESC',
+	tab: 'TAB',
+	backspace: 'BKSP',
+};
 function loadSettings() {
 	const saved = localStorage.getItem('flightSimSettings');
 	if (saved) {
@@ -54,6 +86,10 @@ function saveSettings() {
 	localStorage.setItem('flightSimSettings', JSON.stringify(gameSettings));
 }
 
+function keyToDisplay(key) {
+	return KEY_DISPLAY_MAP[key] ?? key.toUpperCase();
+}
+
 function updateSettingsUI() {
 	document.getElementById('graphicsQuality').value = gameSettings.graphicsQuality;
 	document.getElementById('antialiasing').checked = gameSettings.antialiasing;
@@ -64,13 +100,19 @@ function updateSettingsUI() {
 	document.getElementById('showHorizonLines').checked = gameSettings.showHorizonLines;
 	document.getElementById('soundEnabled').checked = gameSettings.soundEnabled;
 	document.getElementById('minimapRange').value = gameSettings.minimapRange.toString();
+	for (const id of INPUT_KEY_IDS) {
+		const el = document.getElementById(id);
+		if (el && gameSettings.inputKeys[id] !== undefined) {
+			el.value = keyToDisplay(gameSettings.inputKeys[id]);
+			el.dataset.key = gameSettings.inputKeys[id];
+		}
+	}
 }
 
 function applySettings() {
-
-
 	if (controller) {
 		controller.setSensitivity(gameSettings.mouseSensitivity);
+		controller.updateKeySettings(gameSettings.inputKeys);
 	}
 
 	if (hud) {
@@ -107,10 +149,10 @@ function applySettings() {
 		document.getElementById('hud-speed-box'),
 		document.getElementById('hud-alt-box'),
 		document.getElementById('coords'),
-		document.getElementById('minimap-container')
+		document.getElementById('minimap-container'),
 	];
 
-	hudElements.forEach(el => {
+	hudElements.forEach((el) => {
 		if (el) {
 			el.style.display = gameSettings.showHud ? 'block' : 'none';
 		}
@@ -127,7 +169,7 @@ let state = {
 	speed: 0,
 	throttle: 0,
 	score: 0,
-	weaponSystem: null
+	weaponSystem: null,
 };
 
 async function initUserLocation() {
@@ -137,7 +179,7 @@ async function initUserLocation() {
 			state.lat = data.latitude;
 			state.lon = data.longitude;
 		}
-	} catch (e) { }
+	} catch (e) {}
 }
 
 initUserLocation();
@@ -198,7 +240,7 @@ const loadingStatus = {
 	model: false,
 	cesium: false,
 	globe: false,
-	failed: false
+	failed: false,
 };
 
 function updateLoadingUI() {
@@ -209,36 +251,36 @@ function updateLoadingUI() {
 		return;
 	}
 
-	let msg = "";
+	let msg = '';
 	const isAllLoaded = loadingStatus.audio && loadingStatus.model && loadingStatus.cesium && loadingStatus.globe;
 
 	if (loadingStatus.failed) {
-		msg = "Loading Failed. Please Refresh.";
+		msg = 'Loading Failed. Please Refresh.';
 	} else if (!isAllLoaded) {
-		if (!loadingStatus.audio) msg = "Loading Audio...";
-		else if (!loadingStatus.model) msg = "Loading Aircraft Model...";
-		else if (!loadingStatus.cesium) msg = "Loading Satellite Imagery...";
-		else if (!loadingStatus.globe) msg = "Loading Globe Surface...";
+		if (!loadingStatus.audio) msg = 'Loading Audio...';
+		else if (!loadingStatus.model) msg = 'Loading Aircraft Model...';
+		else if (!loadingStatus.cesium) msg = 'Loading Satellite Imagery...';
+		else if (!loadingStatus.globe) msg = 'Loading Globe Surface...';
 	}
 
 	if (msg) {
 		loadingText.textContent = msg;
 		startBtn.disabled = true;
-		startBtn.style.pointerEvents = "none";
+		startBtn.style.pointerEvents = 'none';
 		loadingIndicator.classList.remove('hidden');
 
 		if (loadingStatus.failed) {
-			loadingText.style.color = "#f00";
+			loadingText.style.color = '#f00';
 			const spinner = loadingIndicator.querySelector('.spinner');
 			if (spinner) {
-				spinner.style.borderColor = "rgba(255, 0, 0, 0.3)";
-				spinner.style.borderTopColor = "#f00";
+				spinner.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+				spinner.style.borderTopColor = '#f00';
 			}
 		}
 	} else {
 		loadingIndicator.classList.add('hidden');
 		startBtn.disabled = false;
-		startBtn.style.pointerEvents = "auto";
+		startBtn.style.pointerEvents = 'auto';
 	}
 }
 
@@ -272,7 +314,7 @@ async function initSounds() {
 		soundManager.loadSound('glitch-1', '/assets/sounds/glitch-transition-1.mp3', false, 0.25),
 		soundManager.loadSound('glitch-2', '/assets/sounds/glitch-transition-2.mp3', false, 0.25),
 		soundManager.loadSound('glitch-3', '/assets/sounds/glitch-transition-3.mp3', false, 0.25),
-		soundManager.loadSound('glitch-4', '/assets/sounds/glitch-transition-4.mp3', false, 0.25)
+		soundManager.loadSound('glitch-4', '/assets/sounds/glitch-transition-4.mp3', false, 0.25),
 	]);
 
 	loadingStatus.audio = true;
@@ -298,21 +340,35 @@ function resumeGameplaySounds() {
 }
 
 function setupButtonSounds() {
-	document.addEventListener('mouseover', (e) => {
-		const target = e.target.closest('button, .menu-btn, .clickable-ui');
-		if (target && !target._hovered) {
-			soundManager.play('button-hover');
-			target._hovered = true;
-			target.addEventListener('mouseleave', () => { target._hovered = false; }, { once: true });
-		}
-	}, true);
+	document.addEventListener(
+		'mouseover',
+		(e) => {
+			const target = e.target.closest('button, .menu-btn, .clickable-ui');
+			if (target && !target._hovered) {
+				soundManager.play('button-hover');
+				target._hovered = true;
+				target.addEventListener(
+					'mouseleave',
+					() => {
+						target._hovered = false;
+					},
+					{ once: true }
+				);
+			}
+		},
+		true
+	);
 
-	document.addEventListener('click', (e) => {
-		const target = e.target.closest('button, .menu-btn, .clickable-ui, #search-toggle-btn');
-		if (target) {
-			soundManager.play('button-click');
-		}
-	}, true);
+	document.addEventListener(
+		'click',
+		(e) => {
+			const target = e.target.closest('button, .menu-btn, .clickable-ui, #search-toggle-btn');
+			if (target) {
+				soundManager.play('button-click');
+			}
+		},
+		true
+	);
 }
 
 function initThree() {
@@ -337,68 +393,76 @@ function initThree() {
 	ambientLight.layers.enable(1);
 	directionalLight.layers.enable(1);
 
-	try { particles.init(scene, getViewer()); } catch (e) { }
+	try {
+		particles.init(scene, getViewer());
+	} catch (e) {}
 
-	initSounds().catch(err => console.error('Failed to init sounds', err));
+	initSounds().catch((err) => console.error('Failed to init sounds', err));
 
 	const loader = new GLTFLoader();
-	loader.load('/assets/models/f-15.glb', (gltf) => {
-		const mesh = gltf.scene;
+	loader.load(
+		'/assets/models/f-15.glb',
+		(gltf) => {
+			const mesh = gltf.scene;
 
-		planeModel = new THREE.Group();
-		planeModel.add(mesh);
-		scene.add(planeModel);
+			planeModel = new THREE.Group();
+			planeModel.add(mesh);
+			scene.add(planeModel);
 
-		planeModel.layers.set(1);
-		planeModel.traverse(child => {
-			child.layers.set(1);
-		});
+			planeModel.layers.set(1);
+			planeModel.traverse((child) => {
+				child.layers.set(1);
+			});
 
-		const box = new THREE.Box3().setFromObject(mesh);
-		const center = box.getCenter(new THREE.Vector3());
-		mesh.position.sub(center);
+			const box = new THREE.Box3().setFromObject(mesh);
+			const center = box.getCenter(new THREE.Vector3());
+			mesh.position.sub(center);
 
-		planeModel.position.copy(BASE_PLANE_POS);
-		planeModel.scale.set(0.2, 0.2, 0.2);
+			planeModel.position.copy(BASE_PLANE_POS);
+			planeModel.scale.set(0.2, 0.2, 0.2);
 
-		const flameL = new JetFlame();
-		const flameR = new JetFlame();
+			const flameL = new JetFlame();
+			const flameR = new JetFlame();
 
-		flameL.group.position.set(-0.4, -0.065, 5);
-		flameR.group.position.set(0.4, -0.065, 5);
+			flameL.group.position.set(-0.4, -0.065, 5);
+			flameR.group.position.set(0.4, -0.065, 5);
 
+			planeModel.add(flameL.group);
+			planeModel.add(flameR.group);
+			jetFlames.push(flameL, flameR);
 
-		planeModel.add(flameL.group);
-		planeModel.add(flameR.group);
-		jetFlames.push(flameL, flameR);
+			weaponSystem = new WeaponSystem(getViewer(), scene, planeModel);
+			weaponSystem.onKill = (npc) => {
+				state.score += 1000;
+				try {
+					soundManager.play('glitch-random');
+				} catch (e) {}
+				if (hud) {
+					hud.showKillNotification(npc.name, 1000);
+				}
+			};
 
-		weaponSystem = new WeaponSystem(getViewer(), scene, planeModel);
-		weaponSystem.onKill = (npc) => {
-			state.score += 1000;
-			try { soundManager.play('glitch-random'); } catch (e) { }
-			if (hud) {
-				hud.showKillNotification(npc.name, 1000);
+			planeModel.traverse((child) => {
+				child.layers.set(1);
+			});
+
+			mixer = new THREE.AnimationMixer(mesh);
+			const clip = THREE.AnimationClip.findByName(gltf.animations, 'flight_mode');
+			if (clip) {
+				const action = mixer.clipAction(clip);
+				action.setLoop(THREE.LoopOnce);
+				action.clampWhenFinished = true;
+				action.play();
 			}
-		};
 
-		planeModel.traverse(child => {
-			child.layers.set(1);
-		});
-
-		mixer = new THREE.AnimationMixer(mesh);
-		const clip = THREE.AnimationClip.findByName(gltf.animations, 'flight_mode');
-		if (clip) {
-			const action = mixer.clipAction(clip);
-			action.setLoop(THREE.LoopOnce);
-			action.clampWhenFinished = true;
-			action.play();
+			loadingStatus.model = true;
+			updateLoadingUI();
+		},
+		undefined,
+		(error) => {
+			console.error('Error loading model:', error);
 		}
-
-		loadingStatus.model = true;
-		updateLoadingUI();
-	}, undefined, (error) => {
-		console.error('Error loading model:', error);
-	});
+	);
 }
 
 function update(dt) {
@@ -446,7 +510,7 @@ function update(dt) {
 		lastGeocodeTime = nowTime;
 		lastGeocodePos = { lon: state.lon, lat: state.lat };
 
-		reverseGeocode(state.lon, state.lat).then(name => {
+		reverseGeocode(state.lon, state.lat).then((name) => {
 			if (name && name !== currentRegionName) {
 				currentRegionName = name;
 				hud.showRegion(name);
@@ -505,18 +569,16 @@ function update(dt) {
 	);
 	const planeQuat = Cesium.Quaternion.fromHeadingPitchRoll(planeHPR);
 
-	const orbitHPR = new Cesium.HeadingPitchRoll(
-		Cesium.Math.toRadians(input.cameraYaw),
-		Cesium.Math.toRadians(-input.cameraPitch),
-		0
-	);
+	const orbitHPR = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(input.cameraYaw), Cesium.Math.toRadians(-input.cameraPitch), 0);
 	const orbitQuat = Cesium.Quaternion.fromHeadingPitchRoll(orbitHPR);
 
 	const finalQuat = Cesium.Quaternion.multiply(planeQuat, orbitQuat, new Cesium.Quaternion());
 	const finalHPR = Cesium.HeadingPitchRoll.fromQuaternion(finalQuat);
 
 	setCameraToPlane(
-		state.lon, state.lat, state.alt,
+		state.lon,
+		state.lat,
+		state.alt,
 		Cesium.Math.toDegrees(finalHPR.heading),
 		Cesium.Math.toDegrees(finalHPR.pitch),
 		Cesium.Math.toDegrees(finalHPR.roll)
@@ -539,7 +601,7 @@ function update(dt) {
 			}
 
 			const T = physicsResult.boostDuration;
-			const p = Math.max(0, Math.min(1.0, 1.0 - (physicsResult.boostTimeRemaining / T)));
+			const p = Math.max(0, Math.min(1.0, 1.0 - physicsResult.boostTimeRemaining / T));
 
 			const totalRotationRad = Math.PI * 2 * physicsResult.boostRotations * boostRollDirection;
 
@@ -547,20 +609,16 @@ function update(dt) {
 				const localP = p / 0.2;
 				boostZOffset = -(localP * localP) * 1.5;
 				boostRoll = 0;
-			}
-			else if (p < 0.8) {
+			} else if (p < 0.8) {
 				const localP = (p - 0.2) / 0.6;
 				boostZOffset = -1.5;
-				const easedP = localP < 0.5
-					? 4 * localP * localP * localP
-					: 1 - Math.pow(-2 * localP + 2, 3) / 2;
+				const easedP = localP < 0.5 ? 4 * localP * localP * localP : 1 - Math.pow(-2 * localP + 2, 3) / 2;
 				boostRoll = easedP * (Math.PI * 2 * physicsResult.boostRotations) * boostRollDirection;
-			}
-			else {
+			} else {
 				const localP = (p - 0.8) / 0.2;
 				const easedReturn = localP * localP * (3 - 2 * localP);
-				boostZOffset = -1.5 + (easedReturn * 0.7);
-				boostRoll = (Math.PI * 2 * physicsResult.boostRotations) * boostRollDirection;
+				boostZOffset = -1.5 + easedReturn * 0.7;
+				boostRoll = Math.PI * 2 * physicsResult.boostRotations * boostRollDirection;
 			}
 		} else {
 			boostRoll = 0;
@@ -572,7 +630,6 @@ function update(dt) {
 		currentBoostZOffset += (boostZOffset - currentBoostZOffset) * zLerp;
 		targetZ += currentBoostZOffset;
 
-
 		const time = performance.now() * 0.001;
 		const idleX = Math.sin(time * 0.8) * 0.035;
 		const idleY = Math.cos(time * 0.6) * 0.025;
@@ -580,8 +637,8 @@ function update(dt) {
 		const idleRotY = Math.cos(time * 0.4) * 0.015;
 		const idleRotZ = Math.sin(time * 0.7) * 0.025;
 
-		const targetX = input.isDragging ? BASE_PLANE_POS.x : BASE_PLANE_POS.x - (input.roll * 0.6) - (input.yaw * 0.12) + idleX;
-		const targetY = input.isDragging ? BASE_PLANE_POS.y : BASE_PLANE_POS.y - (input.pitch * 0.1) + idleY;
+		const targetX = input.isDragging ? BASE_PLANE_POS.x : BASE_PLANE_POS.x - input.roll * 0.6 - input.yaw * 0.12 + idleX;
+		const targetY = input.isDragging ? BASE_PLANE_POS.y : BASE_PLANE_POS.y - input.pitch * 0.1 + idleY;
 
 		let targetRotZ = input.isDragging ? 0 : THREE.MathUtils.degToRad(-input.roll * 15) + idleRotZ;
 		const targetRotX = input.isDragging ? 0 : THREE.MathUtils.degToRad(input.pitch * 10) + idleRotX;
@@ -597,12 +654,7 @@ function update(dt) {
 		visualRotation.y += (targetRotY - visualRotation.y) * lerpFactor;
 
 		const orbitQ = new THREE.Quaternion().setFromEuler(
-			new THREE.Euler(
-				THREE.MathUtils.degToRad(-input.cameraPitch),
-				THREE.MathUtils.degToRad(-input.cameraYaw),
-				0,
-				'YXZ'
-			)
+			new THREE.Euler(THREE.MathUtils.degToRad(-input.cameraPitch), THREE.MathUtils.degToRad(-input.cameraYaw), 0, 'YXZ')
 		);
 
 		planeModel.position.copy(visualOffset);
@@ -615,7 +667,7 @@ function update(dt) {
 		planeModel.quaternion.copy(combinedQ);
 
 		if (jetFlames.length > 0) {
-			jetFlames.forEach(flame => {
+			jetFlames.forEach((flame) => {
 				flame.update(state.throttle, state.isBoosting, clock.getElapsedTime(), dt);
 			});
 		}
@@ -749,7 +801,9 @@ function animate() {
 
 		if (mixer) mixer.update(dt);
 
-		try { if (currentState === States.FLYING) particles.update(dt); } catch (e) { }
+		try {
+			if (currentState === States.FLYING) particles.update(dt);
+		} catch (e) {}
 
 		renderer.render(scene, camera);
 
@@ -761,14 +815,13 @@ function animate() {
 		camera.layers.set(1);
 
 		renderer.render(scene, camera);
-
 	} else {
 		threeContainer.classList.add('hidden');
 	}
 }
 
 function closeAllModals() {
-	document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
+	document.querySelectorAll('.modal').forEach((m) => m.classList.add('hidden'));
 }
 
 function setupModalListeners() {
@@ -804,11 +857,22 @@ function setupModalListeners() {
 		document.getElementById('aboutBtnModal').classList.remove('hidden');
 	};
 
-
-
 	document.getElementById('sensitivitySlider').oninput = (e) => {
 		document.getElementById('sensitivityValue').textContent = e.target.value;
 	};
+
+	const ignoredKeys = new Set(['shift', 'control', 'alt', 'meta', 'capslock', 'numlock', 'scrolllock']);
+	for (const id of INPUT_KEY_IDS) {
+		const el = document.getElementById(id);
+		if (!el) return;
+		el.addEventListener('keydown', (e) => {
+			e.preventDefault();
+			const key = e.key === ' ' ? ' ' : e.key.toLowerCase();
+			if (ignoredKeys.has(key)) return;
+			el.value = keyToDisplay(key);
+			el.dataset.key = key;
+		});
+	}
 
 	document.getElementById('saveOptionsBtn').onclick = () => {
 		gameSettings.graphicsQuality = document.getElementById('graphicsQuality').value;
@@ -819,13 +883,17 @@ function setupModalListeners() {
 		gameSettings.showHorizonLines = document.getElementById('showHorizonLines').checked;
 		gameSettings.soundEnabled = document.getElementById('soundEnabled').checked;
 		gameSettings.minimapRange = parseInt(document.getElementById('minimapRange').value);
+		for (const id of INPUT_KEY_IDS) {
+			const el = document.getElementById(id);
+			if (el && el.dataset.key !== undefined) gameSettings.inputKeys[id] = el.dataset.key;
+		}
 
 		saveSettings();
 		applySettings();
 		closeAllModals();
 	};
 
-	document.querySelectorAll('.close-modal').forEach(btn => {
+	document.querySelectorAll('.close-modal').forEach((btn) => {
 		btn.onclick = (e) => {
 			e.stopPropagation();
 			btn.closest('.modal').classList.add('hidden');
@@ -929,7 +997,7 @@ function enterSpawnPicking(useVignette = true) {
 			duration: 2.0,
 			complete: () => {
 				if (vignette) vignette.style.opacity = '0';
-			}
+			},
 		});
 	}, delay);
 }
@@ -956,7 +1024,7 @@ function exitSpawnPicking() {
 	const viewer = getViewer();
 	viewer.camera.flyTo({
 		...initialCameraView,
-		duration: 2.5
+		duration: 2.5,
 	});
 }
 
@@ -982,18 +1050,20 @@ function setupSpawnPicker() {
 
 			instructionText.textContent = 'FETCHING LOCATION INFO...';
 
-			reverseGeocode(lon, lat).then(regionName => {
-				if (regionName && currentState === States.PICK_SPAWN) {
-					instructionText.textContent = regionName;
-					if (spawnMarker) {
-						spawnMarker.label.text = regionName;
+			reverseGeocode(lon, lat)
+				.then((regionName) => {
+					if (regionName && currentState === States.PICK_SPAWN) {
+						instructionText.textContent = regionName;
+						if (spawnMarker) {
+							spawnMarker.label.text = regionName;
+						}
 					}
-				}
-			}).catch(() => { });
+				})
+				.catch(() => {});
 
 			Cesium.sampleTerrainMostDetailed(viewer.terrainProvider, [cartographic])
-				.then(([p]) => state.alt = Math.max(0, p.height || 0) + 1500)
-				.catch(() => { });
+				.then(([p]) => (state.alt = Math.max(0, p.height || 0) + 1500))
+				.catch(() => {});
 
 			if (spawnMarker) {
 				viewer.entities.remove(spawnMarker);
@@ -1005,17 +1075,17 @@ function setupSpawnPicker() {
 					color: Cesium.Color.RED,
 					outlineColor: Cesium.Color.WHITE,
 					outlineWidth: 2,
-					disableDepthTestDistance: Number.POSITIVE_INFINITY
+					disableDepthTestDistance: Number.POSITIVE_INFINITY,
 				},
 				label: {
-					text: "Target Spawn Location",
+					text: 'Target Spawn Location',
 					font: `14pt ${getComputedStyle(document.body).fontFamily}`,
 					style: Cesium.LabelStyle.FILL_AND_OUTLINE,
 					outlineWidth: 2,
 					verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
 					pixelOffset: new Cesium.Cartesian2(0, -20),
-					disableDepthTestDistance: Number.POSITIVE_INFINITY
-				}
+					disableDepthTestDistance: Number.POSITIVE_INFINITY,
+				},
 			});
 
 			confirmSpawnBtn.classList.remove('hidden');
@@ -1068,7 +1138,7 @@ function setupLocationSearch() {
 
 				resultsContainer.innerHTML = '';
 				if (data.length > 0) {
-					data.forEach(item => {
+					data.forEach((item) => {
 						const div = document.createElement('div');
 						div.textContent = item.display_name;
 						div.style.padding = '10px';
@@ -1089,11 +1159,11 @@ function setupLocationSearch() {
 								.then(([p]) => {
 									state.alt = Math.max(0, p.height || 0) + 1500;
 								})
-								.catch(() => { });
+								.catch(() => {});
 
 							viewer.camera.flyTo({
 								destination: Cesium.Cartesian3.fromDegrees(lon, lat, 15000),
-								duration: 1.5
+								duration: 1.5,
 							});
 
 							if (spawnMarker) {
@@ -1106,7 +1176,7 @@ function setupLocationSearch() {
 									color: Cesium.Color.RED,
 									outlineColor: Cesium.Color.WHITE,
 									outlineWidth: 2,
-									disableDepthTestDistance: Number.POSITIVE_INFINITY
+									disableDepthTestDistance: Number.POSITIVE_INFINITY,
 								},
 								label: {
 									text: item.display_name.split(',')[0],
@@ -1115,8 +1185,8 @@ function setupLocationSearch() {
 									outlineWidth: 2,
 									verticalOrigin: Cesium.VerticalOrigin.BOTTOM,
 									pixelOffset: new Cesium.Cartesian2(0, -20),
-									disableDepthTestDistance: Number.POSITIVE_INFINITY
-								}
+									disableDepthTestDistance: Number.POSITIVE_INFINITY,
+								},
 							});
 
 							confirmSpawnBtn.classList.remove('hidden');
@@ -1221,7 +1291,7 @@ document.getElementById('confirmSpawnBtn').onclick = () => {
 			orientation: {
 				heading: Cesium.Math.toRadians(state.heading),
 				pitch: Cesium.Math.toRadians(state.pitch),
-				roll: Cesium.Math.toRadians(state.roll)
+				roll: Cesium.Math.toRadians(state.roll),
 			},
 			duration: 2.0,
 			easingFunction: Cesium.EasingFunction.QUADRATIC_IN_OUT,
@@ -1239,7 +1309,7 @@ document.getElementById('confirmSpawnBtn').onclick = () => {
 				if (dialogueSystem) {
 					dialogueSystem.start();
 				}
-			}
+			},
 		});
 	}, 500);
 };
@@ -1249,12 +1319,12 @@ window.addEventListener('keydown', (e) => {
 	if (key === 'escape') {
 		const openModals = document.querySelectorAll('.modal:not(.hidden)');
 		if (openModals.length > 0) {
-			openModals.forEach(m => m.classList.add('hidden'));
+			openModals.forEach((m) => m.classList.add('hidden'));
 			return;
 		}
 	}
 
-	if (key === 'escape' || key === 'p') {
+	if (key === 'escape' || key === gameSettings.inputKeys.pauseKey) {
 		if (currentState === States.FLYING) {
 			currentState = States.PAUSED;
 			if (dialogueSystem) dialogueSystem.pause();
@@ -1278,7 +1348,7 @@ window.addEventListener('keydown', (e) => {
 		}
 	}
 
-	if (key === 'z' && currentState === States.FLYING) {
+	if (key === gameSettings.inputKeys.skipDialogueKey && currentState === States.FLYING) {
 		if (dialogueSystem) dialogueSystem.skip();
 	}
 });
@@ -1336,7 +1406,7 @@ viewer.scene.globe.tileLoadProgressEvent.addEventListener((queueLength) => {
 	if (loadingIndicator && loadingText) {
 		if (currentState === States.PICK_SPAWN) {
 			if (queueLength > 0) {
-				loadingText.textContent = "Loading Terrain...";
+				loadingText.textContent = 'Loading Terrain...';
 				loadingIndicator.classList.remove('hidden');
 			} else {
 				loadingIndicator.classList.add('hidden');
@@ -1365,8 +1435,8 @@ initialCameraView = {
 	orientation: {
 		heading: viewer.camera.heading,
 		pitch: viewer.camera.pitch,
-		roll: viewer.camera.roll
-	}
+		roll: viewer.camera.roll,
+	},
 };
 
 initThree();
@@ -1390,6 +1460,10 @@ window.addEventListener('resize', () => {
 	if (viewer) viewer.resize();
 });
 
-window.addEventListener('contextmenu', (e) => {
-	e.preventDefault();
-}, false);
+window.addEventListener(
+	'contextmenu',
+	(e) => {
+		e.preventDefault();
+	},
+	false
+);

@@ -1,416 +1,505 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Web Flight Simulator</title>
+		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
+		<link rel="stylesheet" href="/src/style.css" />
+	</head>
 
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Web Flight Simulator</title>
-	<link rel="icon" type="image/x-icon" href="/favicon.ico">
-	<link rel="stylesheet" href="/src/style.css">
-</head>
+	<body>
+		<div id="cesiumContainer"></div>
+		<div id="threeContainer"></div>
 
-<body>
-	<div id="cesiumContainer"></div>
-	<div id="threeContainer"></div>
-
-	<div id="mainMenu" class="overlay">
-		<div class="menu-container">
-			<div class="menu-vignette"></div>
-			<div class="menu-content">
-				<div class="menu-header">
-					<div class="menu-logo">
-						<span class="logo-main">WEB FLIGHT</span>
-						<span class="logo-sub">SIMULATOR</span>
+		<div id="mainMenu" class="overlay">
+			<div class="menu-container">
+				<div class="menu-vignette"></div>
+				<div class="menu-content">
+					<div class="menu-header">
+						<div class="menu-logo">
+							<span class="logo-main">WEB FLIGHT</span>
+							<span class="logo-sub">SIMULATOR</span>
+						</div>
+						<div class="menu-version">VER 1.0.0</div>
 					</div>
-					<div class="menu-version">VER 1.0.0</div>
+
+					<div class="menu-main">
+						<nav class="menu-nav">
+							<button id="startBtn" class="main-menu-btn" disabled>
+								<span class="btn-top">01</span>
+								<span class="btn-mid">START GAME</span>
+								<span class="btn-bot">COMMENCE FLIGHT OPERATIONS</span>
+							</button>
+							<button id="optionsBtn" class="main-menu-btn">
+								<span class="btn-top">02</span>
+								<span class="btn-mid">SYSTEM CONFIG</span>
+								<span class="btn-bot">ADJUST HARDWARE SETTINGS</span>
+							</button>
+							<button id="helpBtn" class="main-menu-btn">
+								<span class="btn-top">03</span>
+								<span class="btn-mid">OPERATIONS MANUAL</span>
+								<span class="btn-bot">FLIGHT CONTROLS & PROCEDURES</span>
+							</button>
+							<button id="creditsBtn" class="main-menu-btn">
+								<span class="btn-top">04</span>
+								<span class="btn-mid">CREDITS</span>
+								<span class="btn-bot">DEVELOPMENT DATA</span>
+							</button>
+							<button id="aboutBtn" class="main-menu-btn">
+								<span class="btn-top">05</span>
+								<span class="btn-mid">ABOUT DEVELOPER</span>
+								<span class="btn-bot">DEVELOPER INFORMATION</span>
+							</button>
+						</nav>
+					</div>
+
+					<div class="menu-footer">
+						<div class="footer-status">
+							<span class="time-label">CURRENT TIME (ZULU):</span>
+							<span id="menu-time" class="time-value">2026-01-01T00:00:00Z</span>
+						</div>
+						<div class="footer-instruction">SELECT COMMAND TO PROCEED</div>
+					</div>
 				</div>
-				
-				<div class="menu-main">
-					<nav class="menu-nav">
-						<button id="startBtn" class="main-menu-btn" disabled>
-							<span class="btn-top">01</span>
-							<span class="btn-mid">START GAME</span>
-							<span class="btn-bot">COMMENCE FLIGHT OPERATIONS</span>
+			</div>
+		</div>
+
+		<div id="loadingIndicator" class="loading-container">
+			<div class="spinner"></div>
+			<div id="loadingText" class="loading-text">Loading system...</div>
+		</div>
+
+		<div id="optionsModal" class="modal hidden">
+			<div class="modal-header">
+				<div class="modal-title">SYSTEM CONFIG</div>
+				<button class="close-modal">CLOSE</button>
+			</div>
+			<div class="modal-body">
+				<!-- #region GRAPHICS UNIT -->
+				<h3>GRAPHICS UNIT</h3>
+				<div class="setting-item">
+					<span>Graphics Quality</span>
+					<select id="graphicsQuality">
+						<option value="low">Low (High Perf)</option>
+						<option value="medium" selected>Medium (Balanced)</option>
+						<option value="high">High (High Quality)</option>
+					</select>
+				</div>
+				<div class="setting-item">
+					<span>Anti-Aliasing (FXAA)</span>
+					<input type="checkbox" id="antialiasing" checked />
+				</div>
+				<div class="setting-item">
+					<span>Fog Effects</span>
+					<input type="checkbox" id="fogEffects" checked />
+				</div>
+				<!-- #endregion -->
+
+				<!-- #region FLIGHT CONTROL -->
+				<h3>FLIGHT CONTROL</h3>
+
+				<div class="setting-item">
+					<span>Mouse Sensitivity</span>
+					<div class="setting-control" style="display: flex; align-items: center; gap: 10px">
+						<input type="range" id="sensitivitySlider" min="0.05" max="1.0" step="0.05" value="0.2" />
+						<span id="sensitivityValue" class="setting-value">0.2</span>
+					</div>
+				</div>
+				<div class="setting-item">
+					<span>Show HUD Controls</span>
+					<input type="checkbox" id="showHud" checked />
+				</div>
+
+				<div class="setting-item">
+					<span>Show Horizon Lines</span>
+					<input type="checkbox" id="showHorizonLines" />
+				</div>
+
+				<div class="setting-item">
+					<span>Sound Active</span>
+					<input type="checkbox" id="soundEnabled" checked />
+				</div>
+
+				<div class="setting-item">
+					<span>Minimap Range</span>
+					<select id="minimapRange">
+						<option value="1" selected>1km (Default)</option>
+						<option value="5">5km (Tactical)</option>
+						<option value="10">10km (Regional)</option>
+					</select>
+				</div>
+				<!-- #endregion -->
+
+				<!-- #region KEY MAPPING -->
+				<h3>KEY MAPPING</h3>
+
+				<h4 class="key-group-label">THROTTLE & YAW</h4>
+				<div class="setting-item">
+					<span>Throttle Forward</span>
+					<input type="text" id="throttleFwKey" value="W" data-key="w" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Throttle Backward</span>
+					<input type="text" id="throttleBwKey" value="S" data-key="s" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Yaw Left</span>
+					<input type="text" id="yawLeftKey" value="A" data-key="a" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Yaw Right</span>
+					<input type="text" id="yawRightKey" value="D" data-key="d" class="key-input" readonly />
+				</div>
+
+				<h4 class="key-group-label">FLIGHT</h4>
+				<div class="setting-item">
+					<span>Pitch Up</span>
+					<input type="text" id="pitchUpKey" value="↑" data-key="arrowup" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Pitch Down</span>
+					<input type="text" id="pitchDownKey" value="↓" data-key="arrowdown" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Roll Left</span>
+					<input type="text" id="rollLeftKey" value="←" data-key="arrowleft" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Roll Right</span>
+					<input type="text" id="rollRightKey" value="→" data-key="arrowright" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Afterburner</span>
+					<input type="text" id="boostKey" value="SPACE" data-key=" " class="key-input" readonly />
+				</div>
+
+				<h4 class="key-group-label">COMBAT</h4>
+				<div class="setting-item">
+					<span>Fire</span>
+					<input type="text" id="fireKey" value="ENTER" data-key="enter" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Fire (Fallback)</span>
+					<input type="text" id="fireFallbackKey" value="F" data-key="f" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Release Flare</span>
+					<input type="text" id="fireFlareKey" value="V" data-key="v" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Toggle Weapon</span>
+					<input type="text" id="toggleWeaponKey" value="Q" data-key="q" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Weapon 1</span>
+					<input type="text" id="weapon1Key" value="1" data-key="1" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Weapon 2</span>
+					<input type="text" id="weapon2Key" value="2" data-key="2" class="key-input" readonly />
+				</div>
+				<h4 class="key-group-label">SYSTEM</h4>
+				<div class="setting-item">
+					<span>Pause / Resume</span>
+					<input type="text" id="pauseKey" value="P" data-key="p" class="key-input" readonly />
+				</div>
+				<div class="setting-item">
+					<span>Skip Dialogue</span>
+					<input type="text" id="skipDialogueKey" value="Z" data-key="z" class="key-input" readonly />
+				</div>
+				<!-- #endregion -->
+			</div>
+			<div class="modal-footer">
+				<button id="saveOptionsBtn">CONFIRM & SAVE</button>
+			</div>
+		</div>
+
+		<div id="helpModal" class="modal hidden">
+			<div class="modal-header">
+				<div class="modal-title">OPERATIONS MANUAL</div>
+				<button class="close-modal">CLOSE</button>
+			</div>
+			<div class="modal-body">
+				<h3>FLIGHT CONTROL</h3>
+				<div class="control-grid">
+					<div class="key">UP / DOWN</div>
+					<div>Pitch Down / Up</div>
+					<div class="key">LEFT / RIGHT</div>
+					<div>Roll Left / Right</div>
+					<div class="key">A / D</div>
+					<div>Yaw (Rudder)</div>
+					<div class="key">W / S</div>
+					<div>Throttle +/-</div>
+					<div class="key">SPACE</div>
+					<div>Afterburner (Boost)</div>
+				</div>
+				<h3>COMBAT SYSTEMS</h3>
+				<div class="control-grid">
+					<div class="key">1 / 2 / Q</div>
+					<div>Switch Weapons</div>
+					<div class="key">F / ENTER</div>
+					<div>Fire Selected Weapon</div>
+					<div class="key">V</div>
+					<div>Release Flares</div>
+				</div>
+				<h3>NAVIGATION</h3>
+				<div class="control-grid">
+					<div class="key">DRAG MOUSE</div>
+					<div>Look Around / Orbit</div>
+					<div class="key">ESC / P</div>
+					<div>Pause / Tactical Menu</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="creditsModal" class="modal hidden">
+			<div class="modal-header">
+				<div class="modal-title">CREDITS</div>
+				<button class="close-modal">CLOSE</button>
+			</div>
+			<div class="modal-body credits-body">
+				<div class="credits-header">
+					<div class="label-tiny">DEVELOPED BY</div>
+					<div class="developed-by-name"><a href="https://tarmizi.id" target="_blank">DIMAR TARMIZI</a></div>
+				</div>
+				<div class="credits-tech-grid">
+					<div>
+						<div class="label-tiny">ENGINE</div>
+						<div class="tech-value">CesiumJS & Three.js</div>
+					</div>
+					<div>
+						<div class="label-tiny">ASSETS</div>
+						<div class="tech-value">F-15 GLB by SIpriv</div>
+					</div>
+				</div>
+				<p class="credits-disclaimer">THIS IS A NON-COMMERCIAL WEB-BASED FLIGHT SIMULATION PROJECT.</p>
+			</div>
+		</div>
+
+		<div id="aboutBtnModal" class="modal hidden">
+			<div class="modal-header">
+				<div class="modal-title">DEVELOPER BIO</div>
+				<button class="close-modal">CLOSE</button>
+			</div>
+			<div class="modal-body">
+				<div class="bio-layout">
+					<div class="bio-avatar-container">
+						<img src="/assets/images/dimar-tarmizi.jpg" alt="Dimar Tarmizi" class="bio-avatar" />
+						<div class="bio-id">ID: RYNX</div>
+					</div>
+					<div class="bio-details">
+						<div class="bio-section">
+							<div class="label-tiny">NAME</div>
+							<div class="bio-name">DIMAR TARMIZI</div>
+						</div>
+						<div class="bio-section">
+							<div class="label-tiny">SPECIFICATION</div>
+							<div class="bio-spec">FULL-STACK SOFTWARE ENGINEER</div>
+						</div>
+						<div class="bio-description">
+							Experienced in end-to-end development, deployment, and server management. Specialized in building scalable web architectures
+							and dynamic simulation interfaces.
+						</div>
+						<div class="bio-social-links">
+							<a href="https://tarmizi.id" target="_blank" class="btn-portfolio">PORTFOLIO ACCESS</a>
+							<a href="https://github.com/dimartarmizi" target="_blank" class="btn-social">GITHUB</a>
+							<a href="https://www.facebook.com/dimartarmizi" target="_blank" class="btn-social">FACEBOOK</a>
+							<a href="https://www.instagram.com/dimartarmizi" target="_blank" class="btn-social">INSTAGRAM</a>
+							<a href="https://www.linkedin.com/in/dimartarmizi" target="_blank" class="btn-social">LINKEDIN</a>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="pauseMenu" class="overlay hidden">
+			<div class="pause-content">
+				<div class="pause-sidebar">
+					<div class="pause-header">
+						<h2 class="pause-title">PAUSED</h2>
+						<div class="pause-subtitle">SYSTEM HOLD</div>
+					</div>
+					<nav class="pause-nav">
+						<button id="resumeBtn" class="pause-btn">
+							<span class="btn-label">RESUME</span>
+							<span class="btn-desc">RETURN TO FLIGHT</span>
 						</button>
-						<button id="optionsBtn" class="main-menu-btn">
-							<span class="btn-top">02</span>
-							<span class="btn-mid">SYSTEM CONFIG</span>
-							<span class="btn-bot">ADJUST HARDWARE SETTINGS</span>
+						<button id="restartBtn" class="pause-btn">
+							<span class="btn-label">RESTART</span>
+							<span class="btn-desc">RESTART GAME</span>
 						</button>
-						<button id="helpBtn" class="main-menu-btn">
-							<span class="btn-top">03</span>
-							<span class="btn-mid">OPERATIONS MANUAL</span>
-							<span class="btn-bot">FLIGHT CONTROLS & PROCEDURES</span>
+						<button id="pauseHelpBtn" class="pause-btn">
+							<span class="btn-label">HELP</span>
+							<span class="btn-desc">OPERATIONS MANUAL</span>
 						</button>
-						<button id="creditsBtn" class="main-menu-btn">
-							<span class="btn-top">04</span>
-							<span class="btn-mid">CREDITS</span>
-							<span class="btn-bot">DEVELOPMENT DATA</span>
+						<button id="pauseOptionsBtn" class="pause-btn">
+							<span class="btn-label">OPTIONS</span>
+							<span class="btn-desc">SYSTEM CONFIG</span>
 						</button>
-						<button id="aboutBtn" class="main-menu-btn">
-							<span class="btn-top">05</span>
-							<span class="btn-mid">ABOUT DEVELOPER</span>
-							<span class="btn-bot">DEVELOPER INFORMATION</span>
+						<button id="quitBtn" class="pause-btn quit">
+							<span class="btn-label">QUIT</span>
+							<span class="btn-desc">BACK TO MENU</span>
 						</button>
 					</nav>
 				</div>
-
-				<div class="menu-footer">
-					<div class="footer-status">
-						<span class="time-label">CURRENT TIME (ZULU):</span>
-						<span id="menu-time" class="time-value">2026-01-01T00:00:00Z</span>
-					</div>
-					<div class="footer-instruction">SELECT COMMAND TO PROCEED</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div id="loadingIndicator" class="loading-container">
-		<div class="spinner"></div>
-		<div id="loadingText" class="loading-text">Loading system...</div>
-	</div>
-
-	<div id="optionsModal" class="modal hidden">
-		<div class="modal-header">
-			<div class="modal-title">SYSTEM CONFIG</div>
-			<button class="close-modal">CLOSE</button>
-		</div>
-		<div class="modal-body">
-			<h3>GRAPHICS UNIT</h3>
-			<div class="setting-item">
-				<span>Graphics Quality</span>
-				<select id="graphicsQuality">
-					<option value="low">Low (High Perf)</option>
-					<option value="medium" selected>Medium (Balanced)</option>
-					<option value="high">High (High Quality)</option>
-				</select>
-			</div>
-			<div class="setting-item">
-				<span>Anti-Aliasing (FXAA)</span>
-				<input type="checkbox" id="antialiasing" checked>
-			</div>
-			<div class="setting-item">
-				<span>Fog Effects</span>
-				<input type="checkbox" id="fogEffects" checked>
-			</div>
-
-			<h3>FLIGHT CONTROL</h3>
-
-			<div class="setting-item">
-				<span>Mouse Sensitivity</span>
-				<div class="setting-control" style="display:flex; align-items:center; gap:10px;">
-					<input type="range" id="sensitivitySlider" min="0.05" max="1.0" step="0.05" value="0.2">
-					<span id="sensitivityValue" class="setting-value">0.2</span>
-				</div>
-			</div>
-			<div class="setting-item">
-				<span>Show HUD Controls</span>
-				<input type="checkbox" id="showHud" checked>
-			</div>
-
-			<div class="setting-item">
-				<span>Show Horizon Lines</span>
-				<input type="checkbox" id="showHorizonLines">
-			</div>
-
-			<div class="setting-item">
-				<span>Sound Active</span>
-				<input type="checkbox" id="soundEnabled" checked>
-			</div>
-
-			<div class="setting-item">
-				<span>Minimap Range</span>
-				<select id="minimapRange">
-					<option value="1" selected>1km (Default)</option>
-					<option value="5">5km (Tactical)</option>
-					<option value="10">10km (Regional)</option>
-				</select>
-			</div>
-		</div>
-		<div class="modal-footer">
-			<button id="saveOptionsBtn">CONFIRM & SAVE</button>
-		</div>
-	</div>
-
-	<div id="helpModal" class="modal hidden">
-		<div class="modal-header">
-			<div class="modal-title">OPERATIONS MANUAL</div>
-			<button class="close-modal">CLOSE</button>
-		</div>
-		<div class="modal-body">
-			<h3>FLIGHT CONTROL</h3>
-			<div class="control-grid">
-				<div class="key">UP / DOWN</div>
-				<div>Pitch Down / Up</div>
-				<div class="key">LEFT / RIGHT</div>
-				<div>Roll Left / Right</div>
-				<div class="key">A / D</div>
-				<div>Yaw (Rudder)</div>
-				<div class="key">W / S</div>
-				<div>Throttle +/-</div>
-				<div class="key">SPACE</div>
-				<div>Afterburner (Boost)</div>
-			</div>
-			<h3>COMBAT SYSTEMS</h3>
-			<div class="control-grid">
-				<div class="key">1 / 2 / Q</div>
-				<div>Switch Weapons</div>
-				<div class="key">F / ENTER</div>
-				<div>Fire Selected Weapon</div>
-				<div class="key">V</div>
-				<div>Release Flares</div>
-			</div>
-			<h3>NAVIGATION</h3>
-			<div class="control-grid">
-				<div class="key">DRAG MOUSE</div>
-				<div>Look Around / Orbit</div>
-				<div class="key">ESC / P</div>
-				<div>Pause / Tactical Menu</div>
-			</div>
-		</div>
-	</div>
-
-	<div id="creditsModal" class="modal hidden">
-		<div class="modal-header">
-			<div class="modal-title">CREDITS</div>
-			<button class="close-modal">CLOSE</button>
-		</div>
-		<div class="modal-body credits-body">
-			<div class="credits-header">
-				<div class="label-tiny">DEVELOPED BY</div>
-				<div class="developed-by-name"><a href="https://tarmizi.id" target="_blank">DIMAR TARMIZI</a></div>
-			</div>
-			<div class="credits-tech-grid">
-				<div>
-					<div class="label-tiny">ENGINE</div>
-					<div class="tech-value">CesiumJS & Three.js</div>
-				</div>
-				<div>
-					<div class="label-tiny">ASSETS</div>
-					<div class="tech-value">F-15 GLB by SIpriv</div>
-				</div>
-			</div>
-			<p class="credits-disclaimer">THIS IS A NON-COMMERCIAL WEB-BASED FLIGHT SIMULATION PROJECT.</p>
-		</div>
-	</div>
-
-	<div id="aboutBtnModal" class="modal hidden">
-		<div class="modal-header">
-			<div class="modal-title">DEVELOPER BIO</div>
-			<button class="close-modal">CLOSE</button>
-		</div>
-		<div class="modal-body">
-			<div class="bio-layout">
-				<div class="bio-avatar-container">
-					<img src="/assets/images/dimar-tarmizi.jpg" alt="Dimar Tarmizi" class="bio-avatar">
-					<div class="bio-id">ID: RYNX</div>
-				</div>
-				<div class="bio-details">
-					<div class="bio-section">
-						<div class="label-tiny">NAME</div>
-						<div class="bio-name">DIMAR TARMIZI</div>
-					</div>
-					<div class="bio-section">
-						<div class="label-tiny">SPECIFICATION</div>
-						<div class="bio-spec">FULL-STACK SOFTWARE ENGINEER</div>
-					</div>
-					<div class="bio-description">
-						Experienced in end-to-end development, deployment, and server management. Specialized in building scalable web architectures and dynamic simulation interfaces.
-					</div>
-					<div class="bio-social-links">
-						<a href="https://tarmizi.id" target="_blank" class="btn-portfolio">PORTFOLIO ACCESS</a>
-						<a href="https://github.com/dimartarmizi" target="_blank" class="btn-social">GITHUB</a>
-						<a href="https://www.facebook.com/dimartarmizi" target="_blank" class="btn-social">FACEBOOK</a>
-						<a href="https://www.instagram.com/dimartarmizi" target="_blank" class="btn-social">INSTAGRAM</a>
-						<a href="https://www.linkedin.com/in/dimartarmizi" target="_blank" class="btn-social">LINKEDIN</a>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
-
-	<div id="pauseMenu" class="overlay hidden">
-		<div class="pause-content">
-			<div class="pause-sidebar">
-				<div class="pause-header">
-					<h2 class="pause-title">PAUSED</h2>
-					<div class="pause-subtitle">SYSTEM HOLD</div>
-				</div>
-				<nav class="pause-nav">
-					<button id="resumeBtn" class="pause-btn">
-						<span class="btn-label">RESUME</span>
-						<span class="btn-desc">RETURN TO FLIGHT</span>
-					</button>
-					<button id="restartBtn" class="pause-btn">
-						<span class="btn-label">RESTART</span>
-						<span class="btn-desc">RESTART GAME</span>
-					</button>
-					<button id="pauseHelpBtn" class="pause-btn">
-						<span class="btn-label">HELP</span>
-						<span class="btn-desc">OPERATIONS MANUAL</span>
-					</button>
-					<button id="pauseOptionsBtn" class="pause-btn">
-						<span class="btn-label">OPTIONS</span>
-						<span class="btn-desc">SYSTEM CONFIG</span>
-					</button>
-					<button id="quitBtn" class="pause-btn quit">
-						<span class="btn-label">QUIT</span>
-						<span class="btn-desc">BACK TO MENU</span>
-					</button>
-				</nav>
-			</div>
-			<div class="pause-main">
-				<div class="pause-map-wrapper">
-					<div class="map-header">
-						<span class="map-title">TACTICAL MAP</span>
-						<span id="pause-region" class="map-location">UNKNOWN REGION</span>
-					</div>
-					<div id="pause-minimap-container">
-						<div id="pauseMinimapCesium"></div>
-						<canvas id="pauseMinimap"></canvas>
-					</div>
-					<div class="map-footer">
-						<div class="coord-item">
-							<span class="coord-label">LAT</span>
-							<span id="pause-lat" class="coord-value">0.0000</span>
+				<div class="pause-main">
+					<div class="pause-map-wrapper">
+						<div class="map-header">
+							<span class="map-title">TACTICAL MAP</span>
+							<span id="pause-region" class="map-location">UNKNOWN REGION</span>
 						</div>
-						<div class="coord-item">
-							<span class="coord-label">LON</span>
-							<span id="pause-lon" class="coord-value">0.0000</span>
+						<div id="pause-minimap-container">
+							<div id="pauseMinimapCesium"></div>
+							<canvas id="pauseMinimap"></canvas>
 						</div>
-						<div class="coord-item">
-							<span class="coord-label">ALT</span>
-							<span id="pause-alt" class="coord-value">0 FT</span>
-						</div>
-						<div class="coord-item">
-							<span class="coord-label">LOCAL TIME</span>
-							<span id="pause-time" class="coord-value">2026-01-01T00:00:00Z</span>
+						<div class="map-footer">
+							<div class="coord-item">
+								<span class="coord-label">LAT</span>
+								<span id="pause-lat" class="coord-value">0.0000</span>
+							</div>
+							<div class="coord-item">
+								<span class="coord-label">LON</span>
+								<span id="pause-lon" class="coord-value">0.0000</span>
+							</div>
+							<div class="coord-item">
+								<span class="coord-label">ALT</span>
+								<span id="pause-alt" class="coord-value">0 FT</span>
+							</div>
+							<div class="coord-item">
+								<span class="coord-label">LOCAL TIME</span>
+								<span id="pause-time" class="coord-value">2026-01-01T00:00:00Z</span>
+							</div>
 						</div>
 					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<div id="crashMenu" class="overlay hidden">
-		<h2 class="menu-title crash-header">AIRCRAFT DESTROYED</h2>
-		<button id="respawnBtn" class="menu-btn">RESPAWN</button>
-	</div>
+		<div id="crashMenu" class="overlay hidden">
+			<h2 class="menu-title crash-header">AIRCRAFT DESTROYED</h2>
+			<button id="respawnBtn" class="menu-btn">RESPAWN</button>
+		</div>
 
-	<div id="spawnInstruction" class="hidden">
-		<div id="spawn-top-ui" class="spawn-hud-top">
-			<div id="spawn-instruction">
-				<span id="instruction-text">CLICK ANYWHERE ON THE MAP TO CHOOSE SPAWN POINT</span>
-				<input type="text" id="locationSearch" placeholder="ENTER LOCATION NAME...">
-				<div id="search-results">
+		<div id="spawnInstruction" class="hidden">
+			<div id="spawn-top-ui" class="spawn-hud-top">
+				<div id="spawn-instruction">
+					<span id="instruction-text">CLICK ANYWHERE ON THE MAP TO CHOOSE SPAWN POINT</span>
+					<input type="text" id="locationSearch" placeholder="ENTER LOCATION NAME..." />
+					<div id="search-results"></div>
+				</div>
+				<div id="search-toggle-btn" title="Toggle Search">
+					<svg
+						width="24"
+						height="24"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="3"
+						stroke-linecap="round"
+						stroke-linejoin="round">
+						<circle cx="11" cy="11" r="8"></circle>
+						<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+					</svg>
 				</div>
 			</div>
-			<div id="search-toggle-btn" title="Toggle Search">
-				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-					<circle cx="11" cy="11" r="8"></circle>
-					<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-				</svg>
+
+			<button id="confirmSpawnBtn" class="menu-btn hidden spawn-confirm-btn">CONFIRM SPAWN POINT</button>
+		</div>
+
+		<div id="uiContainer" class="hidden">
+			<div id="compass-container">
+				<div id="compass-center-marker"></div>
+				<div id="compass-tape"></div>
 			</div>
-		</div>
+			<div id="heading-display">000</div>
 
-		<button id="confirmSpawnBtn" class="menu-btn hidden spawn-confirm-btn">CONFIRM SPAWN POINT</button>
-	</div>
-
-	<div id="uiContainer" class="hidden">
-		<div id="compass-container">
-			<div id="compass-center-marker"></div>
-			<div id="compass-tape"></div>
-		</div>
-		<div id="heading-display">000</div>
-
-		<div id="hud-top-left">
-			TIME <span id="time">00:00:00</span><br>
-			SCORE <span id="score">000000</span>
-		</div>
-
-		<div id="hud-top-right">
-			FPS <span id="fps">60</span><br>
-			<span id="local-datetime">01 JAN 26 | 00:00:00</span>
-		</div>
-
-		<div id="hud-speed-box">
-			<div class="label">SPEED</div>
-			<div class="value-box">
-				<span id="speed">0</span>
+			<div id="hud-top-left">
+				TIME <span id="time">00:00:00</span><br />
+				SCORE <span id="score">000000</span>
 			</div>
-		</div>
 
-		<div id="hud-alt-box">
-			<div class="label">ALT</div>
-			<div class="value-box">
-				<span id="altitude">0</span>
+			<div id="hud-top-right">
+				FPS <span id="fps">60</span><br />
+				<span id="local-datetime">01 JAN 26 | 00:00:00</span>
 			</div>
-		</div>
 
-		<div id="coords">0.0000, 0.0000</div>
-
-		<div id="region-notification" class="hidden">
-			<div class="region-label">ENTERING AREA</div>
-			<div id="region-name">REGION NAME</div>
-		</div>
-
-		<div id="pull-up-warning" class="hidden">PULL UP</div>
-
-		<div id="kill-notification-container" class="hidden">
-			<div id="kill-text">ENEMY DESTROYED</div>
-			<div id="kill-score">+1000</div>
-		</div>
-
-		<div id="weapons-hud">
-			<div id="weapon-list">
-				<div class="weapon-item active" id="weapon-gun">
-					<div class="weapon-progress"></div>
-					<span class="weapon-name">M61A1 VULCAN</span>
-					<span class="weapon-ammo">00</span>
-				</div>
-				<div class="weapon-item" id="weapon-missile">
-					<div class="weapon-progress"></div>
-					<span class="weapon-name">AIM-9 SIDEWINDER</span>
-					<span class="weapon-ammo">00</span>
-				</div>
-				<div class="weapon-item" id="weapon-flare">
-					<div class="weapon-progress"></div>
-					<span class="weapon-name">MJU-7A</span>
-					<span class="weapon-ammo">00</span>
+			<div id="hud-speed-box">
+				<div class="label">SPEED</div>
+				<div class="value-box">
+					<span id="speed">0</span>
 				</div>
 			</div>
-			<div id="aircraft-icon">
-				<img src="/assets/images/f-15.svg" alt="F-15 Icon">
-				<div id="aircraft-label">F-15</div>
+
+			<div id="hud-alt-box">
+				<div class="label">ALT</div>
+				<div class="value-box">
+					<span id="altitude">0</span>
+				</div>
 			</div>
-		</div>
 
-		<div id="minimap-container">
-			<div id="minimapCesium"></div>
-			<canvas id="minimap"></canvas>
-		</div>
+			<div id="coords">0.0000, 0.0000</div>
 
-		<div id="game-credits">
-			WEB FLIGHT SIMULATOR | CREATED BY <a href="https://tarmizi.id" target="_blank">DIMAR TARMIZI</a> |
-			<a href="https://github.com/dimartarmizi/web-flight-simulator" target="_blank">GITHUB REPOSITORY</a>
-		</div>
+			<div id="region-notification" class="hidden">
+				<div class="region-label">ENTERING AREA</div>
+				<div id="region-name">REGION NAME</div>
+			</div>
 
-		<div id="dialogue-container" class="hidden">
-			<div class="dialogue-box">
-				<img id="commander-img" src="/assets/images/commander-dimar-tarmizi.jpg" alt="Commander">
-				<div class="dialogue-content">
-					<div class="commander-name">COMMANDER DIMAR TARMIZI</div>
-					<div id="dialogue-text"></div>
-					<div class="dialogue-hint">Press Z to skip</div>
+			<div id="pull-up-warning" class="hidden">PULL UP</div>
+
+			<div id="kill-notification-container" class="hidden">
+				<div id="kill-text">ENEMY DESTROYED</div>
+				<div id="kill-score">+1000</div>
+			</div>
+
+			<div id="weapons-hud">
+				<div id="weapon-list">
+					<div class="weapon-item active" id="weapon-gun">
+						<div class="weapon-progress"></div>
+						<span class="weapon-name">M61A1 VULCAN</span>
+						<span class="weapon-ammo">00</span>
+					</div>
+					<div class="weapon-item" id="weapon-missile">
+						<div class="weapon-progress"></div>
+						<span class="weapon-name">AIM-9 SIDEWINDER</span>
+						<span class="weapon-ammo">00</span>
+					</div>
+					<div class="weapon-item" id="weapon-flare">
+						<div class="weapon-progress"></div>
+						<span class="weapon-name">MJU-7A</span>
+						<span class="weapon-ammo">00</span>
+					</div>
+				</div>
+				<div id="aircraft-icon">
+					<img src="/assets/images/f-15.svg" alt="F-15 Icon" />
+					<div id="aircraft-label">F-15</div>
+				</div>
+			</div>
+
+			<div id="minimap-container">
+				<div id="minimapCesium"></div>
+				<canvas id="minimap"></canvas>
+			</div>
+
+			<div id="game-credits">
+				WEB FLIGHT SIMULATOR | CREATED BY <a href="https://tarmizi.id" target="_blank">DIMAR TARMIZI</a> |
+				<a href="https://github.com/dimartarmizi/web-flight-simulator" target="_blank">GITHUB REPOSITORY</a>
+			</div>
+
+			<div id="dialogue-container" class="hidden">
+				<div class="dialogue-box">
+					<img id="commander-img" src="/assets/images/commander-dimar-tarmizi.jpg" alt="Commander" />
+					<div class="dialogue-content">
+						<div class="commander-name">COMMANDER DIMAR TARMIZI</div>
+						<div id="dialogue-text"></div>
+						<div class="dialogue-hint">Press Z to skip</div>
+					</div>
 				</div>
 			</div>
 		</div>
-	</div>
 
-	<div id="transition-vignette"></div>
+		<div id="transition-vignette"></div>
 
-	<script type="module" src="/src/main.js"></script>
-</body>
-
+		<script type="module" src="/src/main.js"></script>
+	</body>
 </html>

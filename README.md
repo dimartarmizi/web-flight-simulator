@@ -13,10 +13,12 @@ A high-performance, web-based flight simulator that bridges the gap between **Th
 ## 🚀 Key Features
 
 ### 🌍 Global Real-World Terrain
+
 - **Digital Twin Earth**: Powered by CesiumJS, fly over high-resolution 3D topography and satellite imagery anywhere on the planet.
 - **Dynamic Level-of-Detail**: Seamlessly transition from high-altitude stratospheric flight to low-level canyon runs.
 
 ### 🦅 Advanced Flight Combat & AI
+
 - **F-15 Eaglehawk**: Optimized 3D model featuring dynamic afterburners and jet flame effects.
 - **Weapon System**:
   - **M61A1 Vulcan**: High-speed internal cannon for close-range dogfights.
@@ -25,6 +27,7 @@ A high-performance, web-based flight simulator that bridges the gap between **Th
 - **NPC Entities**: Encounter other aircraft in the world. AI flight behaviors and randomized callsigns are currently under development.
 
 ### 🖥️ Tactical HUD & UI
+
 - **Professional Avionics**: A fully integrated Heads-Up Display (HUD) featuring:
   - Pitch Ladder and Heading Tape.
   - Real-time Altitude (ASL) and Airspeed (IAS) indicators.
@@ -56,22 +59,27 @@ A complex sound environment is built using the `Three.js AudioListener` system:
 
 ## ⌨️ Controls & Handling
 
-| Category | Action | Key |
-| :--- | :--- | :--- |
-| **Flight** | Pitch Up / Down | `Arrow Down` / `Arrow Up` |
-| | Roll Left / Right | `Arrow Left` / `Arrow Right` |
-| | Yaw (Rudder) | `A` / `D` |
-| | Increase / Decrease Throttle | `W` / `S` |
-| | Afterburner (Boost) | `Space` |
-| **Combat** | Fire Active Weapon | `Enter` or `F` |
-| | Deploy Flares | `V` |
-| | Select Weapon | `1` / `2` |
-| | Cycle Weapon | `Q` |
-| **View** | Look Around | `Mouse Left Drag` |
+> All keybindings can be remapped in the **Options** menu under the _Key Bindings_ section. Changes are saved automatically to `localStorage`.
+
+| Category   | Action                       | Default Key                              |
+| :--------- | :--------------------------- | :--------------------------------------- |
+| **Flight** | Pitch Up / Down              | `Arrow Down` / `Arrow Up`                |
+|            | Roll Left / Right            | `Arrow Left` / `Arrow Right`             |
+|            | Yaw (Rudder)                 | `A` / `D`                                |
+|            | Increase / Decrease Throttle | `W` / `S`                                |
+|            | Afterburner (Boost)          | `Space`                                  |
+| **Combat** | Fire Active Weapon           | `Enter` or `F`                           |
+|            | Deploy Flares                | `V`                                      |
+|            | Select Weapon                | `1` / `2`                                |
+|            | Cycle Weapon                 | `Q`                                      |
+| **View**   | Look Around                  | `Mouse Left Drag`                        |
+| **System** | Pause / Resume               | `P` _(remappable)_ or `Escape` _(fixed)_ |
+|            | Skip Dialogue                | `Z`                                      |
 
 ## 🛠️ Technical Overview
 
 The project utilizes a **Hybrid Rendering Architecture**:
+
 - **CesiumJS** handles the massive planetary scales, WGS84 coordinates, and terrain streaming.
 - **Three.js** manages the local coordinate system for the aircraft model, particle effects (jet flames, explosions), and lighting.
 - **Vite** provides an ultra-fast HMR development environment and optimized production builds.
@@ -79,17 +87,20 @@ The project utilizes a **Hybrid Rendering Architecture**:
 ## 📦 Installation & Setup
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/dimartarmizi/web-flight-simulator.git
    cd web-flight-simulator
    ```
 
 2. **Install dependencies:**
+
    ```bash
    npm install
    ```
 
 3. **Run development server:**
+
    ```bash
    npm run dev
    ```
