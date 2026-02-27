@@ -1233,6 +1233,38 @@ input[type="checkbox"]:not(:checked)::after {
 	cursor: pointer;
 }
 
+.key-input {
+	background: #000;
+	color: #0f0;
+	border: 1px solid #0f0;
+	padding: 5px 4px;
+	width: 64px;
+	text-align: center;
+	font-family: inherit;
+	font-size: 14px;
+	text-transform: uppercase;
+	cursor: pointer;
+	caret-color: transparent;
+	user-select: none;
+}
+
+.key-input:focus {
+	outline: none;
+	border-color: #0f0;
+	box-shadow: 0 0 6px rgba(0, 255, 0, 0.5);
+	background: rgba(0, 255, 0, 0.08);
+}
+
+.key-group-label {
+	margin: 14px 0 6px 0;
+	font-size: 11px;
+	color: rgba(0, 255, 0, 0.5);
+	letter-spacing: 2px;
+	font-weight: normal;
+	border-bottom: 1px solid rgba(0, 255, 0, 0.15);
+	padding-bottom: 4px;
+}
+
 input[type="range"] {
 	-webkit-appearance: none;
 	appearance: none;
